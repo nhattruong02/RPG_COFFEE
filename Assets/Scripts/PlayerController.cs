@@ -19,7 +19,7 @@ public class PlayerController : MonoBehaviour
     Collider collider;
     [SerializeField] bool _isMobile;
     [SerializeField] FixedJoystick _joystick;
-    [SerializeField] GameObject _uiWeb;
+
     [SerializeField] GameObject _uiMobile;
     [SerializeField] Rigidbody _rigidbody;
     [SerializeField] int _speed;
@@ -30,7 +30,7 @@ public class PlayerController : MonoBehaviour
         motor = GetComponent<PlayerMotor>();
         anim = GetComponent<CharacterAnimation>();
         collider = GetComponent<Collider>();
-        
+
     }
 
     // Update is called once per frame
@@ -38,45 +38,37 @@ public class PlayerController : MonoBehaviour
     {
         if (!_isMobile)
         {
-            _uiWeb.SetActive(true);
             _uiMobile.SetActive(false);
-            if (_isMove)
+            if (Input.GetMouseButtonDown(0))
             {
-                if (Input.GetMouseButtonDown(0))
+                anim.StandUp(false);
+                Ray ray = cam.ScreenPointToRay(Input.mousePosition);
+                RaycastHit hit;
+                if (Physics.Raycast(ray, out hit, 100))
                 {
-                    anim.StandUp(false);
-                    Ray ray = cam.ScreenPointToRay(Input.mousePosition);
-                    RaycastHit hit;
-
-                    if (Physics.Raycast(ray, out hit, 100, movementMask))
+                    interactable = hit.collider.GetComponent<Interactable>();
+                    if (interactable != null)
                     {
+                        SetFocus(interactable);
+                        motor.MoveToPoint(interactable.interactionTransform.position);
+                        StartCoroutine(SitDown());
+                    }
+                    if (interactable == null)
+                    {
+                        if (_isSitting)
+                        {
+                            anim.SitDown(false);
+                        }
                         motor.MoveToPoint(hit.point);
                     }
                 }
-                if (Input.GetMouseButtonDown(1))
-                {
-                    anim.StandUp(false);
-                    Ray ray = cam.ScreenPointToRay(Input.mousePosition);
-                    RaycastHit hit;
-                    if (Physics.Raycast(ray, out hit, 100))
-                    {
-                        interactable = hit.collider.GetComponent<Interactable>();
-                        if (interactable != null)
-                        {
-                            _isMove = false;
-                            SetFocus(interactable);
-                            motor.MoveToPoint(interactable.interactionTransform.position);
-                            StartCoroutine(SitDown());
-                        }
-                    }
-                }
-                
+
             }
         }
         if (_isMobile)
         {
-            _uiWeb.SetActive(false);
             _uiMobile.SetActive(true);
+            motor.Agent.ResetPath();
             if (_isMove)
             {
                 float horizontalMove = _joystick.Horizontal * _speed;
@@ -113,7 +105,6 @@ public class PlayerController : MonoBehaviour
     IEnumerator SitDown()
     {
         yield return new WaitUntil(() => motor.EndOfPath() == true);
-        interactable.checkIsEmpty(false);
         this.collider.enabled = false;
         this.transform.rotation = interactable.interactionTransform.rotation;
         anim.SitDown(true);
